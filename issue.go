@@ -17,11 +17,6 @@ type IssueService struct {
 	client *Client
 }
 
-// IssueList is a collection of Issue records
-type IssueList struct {
-	Issues []*Issue `json:"issues,omitempty"`
-}
-
 // Issue represents a JIRA issue.
 type Issue struct {
 	Expand string       `json:"expand,omitempty"`
@@ -66,16 +61,10 @@ type IssueFields struct {
 	Status            *Status       `json:"status,omitempty"`
 	Progress          *Progress     `json:"progress,omitempty"`
 	AggregateProgress *Progress     `json:"aggregateprogress,omitempty"`
-	Worklog           IssueWorklogs `json:"worklog,omitempty"`
+	Worklog           []*Worklog    `json:"worklog.worklogs,omitempty"`
 	IssueLinks        []*IssueLink  `json:"issuelinks,omitempty"`
 	Comments          []*Comment    `json:"comment.comments,omitempty"`
 	FixVersions       []*FixVersion `json:"fixVersions,omitempty"`
-}
-
-// IssueWorklogs represents all worklogs recorded for the particular issue
-// TODO: It is not pretty to access Worklogs with Issue.Fields.Worklog.WorkLogs.
-type IssueWorklogs struct {
-	Worklogs []*Worklog `json:"worklogs,omitempty"`
 }
 
 // IssueType represents a type of a JIRA issue.
@@ -172,17 +161,7 @@ type Progress struct {
 // Worklog represents the work log of a JIRA issue.
 // JIRA Wiki: https://confluence.atlassian.com/jira/logging-work-on-an-issue-185729605.html
 type Worklog struct {
-	ID               string            `json:"issueId"`
-	IssueID          string            `json:"id"`
-	Self             string            `json:"self"`
-	Author           Assignee          `json:"author"`
-	UpdateAuthor     Assignee          `json:"updateAuthor"`
-	Comment          string            `json:"comment"`
-	Updated          string            `json:"updated"`
-	Started          string            `json:"started"`
-	TimeSpent        string            `json:"timeSpent"`
-	TimeSpentSeconds int               `json:"timeSpentSeconds"`
-	Visibility       CommentVisibility `json:"visibility"`
+	// TODO Add Worklogs
 }
 
 // IssueLink represents a link between two issues in JIRA.
@@ -234,18 +213,6 @@ type FixVersion struct {
 type CommentVisibility struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
-}
-
-// JQL contains the options needed to search JIRA.
-// Note that StartAt and Query are mandatory
-// TODO: This needs to be moved to its own file to clarify its function
-type JQL struct {
-	Query          string `json:"jql"`
-	StartAt        int    `json:"startAt"`
-	MaxResults     int    `json:"maxResults,omitempty"`    // defaults to 50 in Jira 6.4.9
-	ShouldValidate bool   `json:"validateQuery,omitempty"` // defaults to true
-	Fields         string `json:"fields,omitempty"`        // csv of the fields that are returned. Defaults to *naviganble
-	Expand         string `json:"fields,omitempty"`        // csv of the fields that are returned. Defaults to *naviganble
 }
 
 // Get returns a full representation of the issue for the given issue key.
@@ -322,30 +289,4 @@ func (s *IssueService) AddLink(issueLink *IssueLink) (*http.Response, error) {
 
 	resp, err := s.client.Do(req, nil)
 	return resp, err
-}
-
-// SimpleSearch is a convenience wrapper around the JQL function
-func (s *IssueService) SimpleSearch(query string) ([]*Issue, *http.Response, error) {
-	return s.Search(
-		&JQL{Query: query,
-			StartAt: 0,
-			Fields:  "*all"})
-}
-
-// Search performs an abitrary query and returns the fields specified
-func (s *IssueService) Search(jql *JQL) ([]*Issue, *http.Response, error) {
-	apiEndpoint := "rest/api/2/search"
-	req, err := s.client.NewRequest("POST", apiEndpoint, jql)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	issuelist := new(IssueList)
-	resp, err := s.client.Do(req, issuelist)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	return issuelist.Issues, resp, nil
 }
