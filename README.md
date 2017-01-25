@@ -13,6 +13,7 @@
 
 * Authentication (HTTP Basic, OAuth, Session Cookie)
 * Create and receive issues
+* Create and retrieve issue transitions (status updates)
 * Call every API endpoint of the JIRA, even it is not directly implemented in this library
 
 This package is not JIRA API complete (yet), but you can call every API endpoint you want. See [Call a not implemented API endpoint](#call-a-not-implemented-api-endpoint) how to do this. For all possible API endpoints of JRIA have a look at [latest JIRA REST API documentation](https://docs.atlassian.com/jira/REST/latest/).
@@ -71,6 +72,9 @@ func main() {
 
 ### Authenticate with session cookie
 
+Some actions require an authenticated user.
+Here is an example with a session cookie authentification.
+
 ```go
 package main
 
@@ -100,8 +104,61 @@ func main() {
 }
 ```
 
+### Create an issue
+
+Example how to create an issue.
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/andygrunwald/go-jira"
+)
+
+func main() {
+	jiraClient, err := jira.NewClient(nil, "https://your.jira-instance.com/")
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := jiraClient.Authentication.AcquireSessionCookie("username", "password")
+	if err != nil || res == false {
+		fmt.Printf("Result: %v\n", res)
+		panic(err)
+	}
+
+	i := jira.Issue{
+		Fields: &jira.IssueFields{
+			Assignee: &jira.User{
+				Name: "myuser",
+			},
+			Reporter: &jira.User{
+				Name: "youruser",
+			},
+			Description: "Test Issue",
+			Type: jira.IssueType{
+				ID: "60",
+			},
+			Project: jira.Project{
+				Name: "PROJ1",
+			},
+			Summary: "Just a demo issue",
+		},
+	}
+	issue, _, err := jiraClient.Issue.Create(&i)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%s: %+v\n", issue.Key, issue.Fields.Summary)
+}
+```
+
 ### Call a not implemented API endpoint
 
+Not all API endpoints of the JIRA API are implemented into *go-jira*.
+But you can call them anyway:
 Lets get all public projects of [Atlassian`s JIRA instance](https://jira.atlassian.com/).
 
 ```go
